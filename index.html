@@ -11,8 +11,8 @@
 <meta name="apple-mobile-web-app-title" content="Petsa">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="manifest" href="manifest.json">
-<link rel="icon" href="icons/icon-192.png" type="image/png">
-<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
@@ -631,6 +631,8 @@ a{color:var(--brand)}
 .kpi .k-label,.kpi .label{letter-spacing:.6px}
 .ins-pill{font-size:13px}
 
+
+.banner.inapp{background:var(--peach-soft);border-color:#F3C9AE;color:#6B3A1F}
 /* ---------- Print ---------- */
 @media print{
   @page{margin:14mm}
@@ -702,6 +704,8 @@ const ST = { UNPAID: 'UNPAID', PARTIAL: 'PARTIAL', PAID: 'PAID', OVERDUE: 'OVERD
 /** Your Apps Script Web app link (not secret — it does nothing without a customer's private key). Personal links are just …/#k=<key>. */
 const DEFAULT_API_URL = 'https://script.google.com/macros/s/AKfycbwEpQ_ew4_GGMIdokkQDX3_AzcOkrPfresCmtbWqQwhcD2y5a89xx6fNgAUi-t5WswdVg/exec';
 const IS_GAS = typeof google !== 'undefined' && google.script && google.script.run;
+/** True inside Messenger / Facebook / Instagram / other apps' built-in browsers, which cannot install apps. */
+const IN_APP_BROWSER = /FBAN|FBAV|FB_IAB|FB4A|FBIOS|Instagram|Messenger|Line\/|Viber|; wv\)/.test(navigator.userAgent || '');
 const REQUEST_TIMEOUT_MS = 25000;
 const SYNC_BATCH = 50;
 
@@ -1851,7 +1855,9 @@ const UI = {
   go(view) {
     if (!VIEWS.some(v => v.id === view)) view = 'dashboard';
     this.route(view);
-    try { if (location.hash !== '#/' + view) location.hash = '#/' + view; } catch (e) { /* URL not writable here — in-memory routing still works */ }
+    // Inside Messenger/Facebook keep the personal-link key in the address so "Open in browser" carries it to Chrome.
+    const keepKey = IN_APP_BROWSER && /^#(connect|k)=/.test(location.hash || '');
+    try { if (!keepKey && location.hash !== '#/' + view) location.hash = '#/' + view; } catch (e) { /* URL not writable here — in-memory routing still works */ }
   },
   route(view) {
     const id = view || this.hashView() || this.view || 'dashboard';
@@ -1970,8 +1976,12 @@ const UI = {
     if (st === 'ACTIVE' && d >= 0 && d <= 5) return `<div class="banner plan"><span class="grow"><b>Your subscription ${d === 0 ? 'ends today' : 'ends in ' + left.replace(' left', '')}</b> (${U.esc(U.fmtDate(a.paidUntil))}). Renew early — the extra time is added on.</span><button class="btn sm" data-action="subscribe-help">Renew</button></div>`;
     return '';
   },
+  inAppBanner() {
+    if (!IN_APP_BROWSER || IS_GAS) return '';
+    return `<div class="banner inapp"><span class="grow">📲 <b>Want it on your home screen?</b> You opened this inside Messenger/Facebook, which can’t install apps. Tap <b>⋮</b> or <b>…</b> at the top → <b>Open in browser</b> (Chrome on Android, Safari on iPhone), then tap <b>Install</b>.</span>${Store.meta.apiKey ? '<button class="btn sm" data-action="copy-setup-link">Copy my link</button>' : ''}</div>`;
+  },
   cachedBanner() {
-    return this.planBanner() + this.syncBanner();
+    return this.inAppBanner() + this.planBanner() + this.syncBanner();
   },
   syncBanner() {
     const off = !navigator.onLine || Sync.reachable === false;
@@ -2678,7 +2688,7 @@ const Views = {
     </div>`;
   },
   welcome() {
-    return `<div class="gate-wrap"><div class="gate card card-pad">
+    return `${UI.inAppBanner()}<div class="gate-wrap"><div class="gate card card-pad">
       <div class="gate-logo">₱</div>
       <h2 class="gate-title">${U.esc(APP_NAME)}</h2>
       <p class="gate-tag">Your budget and bills — so payday never sneaks up on you.</p>
@@ -3365,11 +3375,11 @@ const Forms = {
     const ios = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     const iosSafari = ios && /Safari/.test(ua) && !/CriOS|FxiOS|EdgiOS|FBAN|FBAV|Instagram|Line\//.test(ua);
     const android = /Android/.test(ua);
-    const inApp = /FBAN|FBAV|Instagram|Messenger|Line\/|; wv\)/.test(ua);
+    const inApp = IN_APP_BROWSER;
     const link = location.origin + location.pathname;
     let body;
     if (IS_GAS) body = `<p>This copy is opened from Google Apps Script, which can't be installed. Open your personal link in your phone's browser and install it from there.</p>`;
-    else if (inApp) body = `<p>You're inside another app's browser (for example Facebook or Messenger), which can't install apps.</p><ol class="install-steps"><li>Tap the <b>⋮</b> or <b>…</b> menu and choose <b>Open in browser</b> (Chrome on Android, Safari on iPhone).</li><li>Then tap <b>Install</b> again.</li></ol>`;
+    else if (inApp) body = `<p>You're inside another app's browser (for example Facebook or Messenger), which can't install apps.</p><ol class="install-steps"><li>Tap the <b>⋮</b> or <b>…</b> menu and choose <b>Open in browser</b> (Chrome on Android, Safari on iPhone).</li><li>Then tap <b>Install</b> again.</li></ol>${Store.meta.apiKey ? '<p class="sub" style="color:var(--ink-2);margin:12px 0 8px">If the browser opens without your account, paste your link there:</p><button type="button" class="btn primary" data-action="copy-setup-link">Copy my link</button>' : ''}`;
     else if (ios && !iosSafari) body = `<p>On iPhone, apps can only be added from <b>Safari</b>.</p><ol class="install-steps"><li>Copy this link: <span class="mono">${U.esc(link)}</span></li><li>Open it in <b>Safari</b>.</li><li>Tap <b>Share</b> (square with an arrow) → <b>Add to Home Screen</b> → <b>Add</b>.</li></ol>`;
     else if (ios) body = `<ol class="install-steps"><li>Tap the <b>Share</b> button <span aria-hidden="true">(square with an arrow ↑)</span> at the bottom of Safari.</li><li>Scroll down and tap <b>Add to Home Screen</b>.</li><li>Tap <b>Add</b>. The <b>₱ Petsa</b> icon appears on your home screen.</li><li>Open the app from that icon and paste your personal link once (iPhone keeps home-screen apps separate from Safari).</li></ol>${Store.meta.apiKey ? '<p style="margin:12px 0 0"><button type="button" class="btn primary" data-action="copy-setup-link" data-same-phone="1">Copy my link first</button></p>' : ''}`;
     else if (android) body = `<ol class="install-steps"><li>Tap the <b>⋮</b> menu at the top right of Chrome.</li><li>Tap <b>Install app</b> (or <b>Add to Home screen</b>) → <b>Install</b>.</li></ol><p class="sub" style="color:var(--ink-2);margin-top:14px">Don't see it? If the menu says <b>Open in app</b>, it's already installed. Look for <b>Petsa</b> (₱ icon) in your app list. To reinstall, long-press that icon → <b>Uninstall</b>, come back here and tap <b>Install</b> again.</p>`;
@@ -4850,7 +4860,8 @@ async function boot() {
   try {
     if (/^#(connect|k)=/.test(location.hash || '')) {
       fromLink = parseLink(location.href);
-      try { location.replace('#/dashboard'); } catch (e) { /* ignore */ }
+      // Inside Messenger/Facebook the key stays in the address, so "Open in browser" brings the account along.
+      if (!IN_APP_BROWSER) { try { location.replace('#/dashboard'); } catch (e) { /* ignore */ } }
     }
   } catch (e) { /* ignore malformed links */ }
   UI.view = UI.hashView() || 'dashboard';
@@ -4865,7 +4876,7 @@ async function boot() {
   window.addEventListener('hashchange', () => {
     if (!/^#(connect|k)=/.test(location.hash || '')) return;
     const l = parseLink(location.href);
-    try { location.replace('#/dashboard'); } catch (e) { /* ignore */ }
+    if (!IN_APP_BROWSER) { try { location.replace('#/dashboard'); } catch (e) { /* ignore */ } }
     if (l) { UI.toast('Connecting your account…'); connectWithLink(l.key, l.url, l.dev); }
   });
   Sync.start();
