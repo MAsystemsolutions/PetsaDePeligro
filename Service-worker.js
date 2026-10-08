@@ -7,7 +7,7 @@
  *
  * Bump CACHE_VERSION whenever you deploy a new index.html so clients update.
  * ========================================================================== */
-const CACHE_VERSION = 'pdp-shell-v2.1.0';
+const CACHE_VERSION = 'pdp-shell-v2.1.1';
 const FONT_CACHE = 'pdp-fonts-v1';
 const SHELL = [
   './',
@@ -32,7 +32,7 @@ self.addEventListener('install', event => {
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys()
-      .then(keys => Promise.all(keys.filter(k => k !== CACHE_VERSION && k !== FONT_CACHE).map(k => caches.delete(k))))
+      .then(keys => Promise.all(keys.filter(k => k.startsWith('pdp-') && k !== CACHE_VERSION && k !== FONT_CACHE).map(k => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });
