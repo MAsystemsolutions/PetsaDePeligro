@@ -792,7 +792,7 @@ const LocalDB = {
     if (!('indexedDB' in self)) return this.useMemory('IndexedDB is not available in this browser');
     try {
       this.db = await new Promise((resolve, reject) => {
-        const req = indexedDB.open('household-finances', 4);
+        const req = indexedDB.open('petsa-de-peligro', 1);
         req.onupgradeneeded = () => {
           const db = req.result;
           Object.keys(ENTITY).forEach(s => { if (!db.objectStoreNames.contains(s)) db.createObjectStore(s, { keyPath: 'id' }); });
