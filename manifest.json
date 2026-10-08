@@ -1,0 +1,61 @@
+{
+  "name": "Petsa De Peligro",
+  "short_name": "Petsa",
+  "description": "Budget and bill tracker that works offline — so payday never sneaks up on you.",
+  "id": "./",
+  "start_url": "./index.html#/dashboard",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#F5F1EA",
+  "theme_color": "#2F6B5A",
+  "lang": "en-PH",
+  "categories": [
+    "finance",
+    "productivity"
+  ],
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Bills",
+      "short_name": "Bills",
+      "url": "./index.html#/bills",
+      "icons": [
+        {
+          "src": "icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Add expense",
+      "short_name": "Expenses",
+      "url": "./index.html#/expenses",
+      "icons": [
+        {
+          "src": "icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ]
+}
