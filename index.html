@@ -699,8 +699,8 @@ const DEFAULT_CATEGORIES = {
   BILL: ['Utilities', 'Housing', 'Debt', 'Pet', 'Household Help', 'Subscriptions', 'Insurance', 'Other']
 };
 const ST = { UNPAID: 'UNPAID', PARTIAL: 'PARTIAL', PAID: 'PAID', OVERDUE: 'OVERDUE', OVER: 'OVER BUDGET', VOID: 'VOID' };
-/** The server address comes from each customer's personal link (…#connect=<key>&url=<server>), so nothing is hard-coded here. */
-const DEFAULT_API_URL = '';
+/** Your Apps Script Web app link (not secret — it does nothing without a customer's private key). Personal links are just …/#k=<key>. */
+const DEFAULT_API_URL = 'https://script.google.com/macros/s/AKfycbwEpQ_ew4_GGMIdokkQDX3_AzcOkrPfresCmtbWqQwhcD2y5a89xx6fNgAUi-t5WswdVg/exec';
 const IS_GAS = typeof google !== 'undefined' && google.script && google.script.run;
 const REQUEST_TIMEOUT_MS = 25000;
 const SYNC_BATCH = 50;
@@ -2684,7 +2684,7 @@ const Views = {
       <p class="gate-tag">Your budget and bills — so payday never sneaks up on you.</p>
       <div class="gate-box"><b>Open your personal link</b><p class="sub" style="margin:4px 0 0">Tap the link you received (by Messenger, Viber, SMS or email). It connects this phone to your account — no password needed.</p></div>
       <form id="connForm" class="form-grid" style="margin-top:16px" autocomplete="off">
-        <div class="field full"><label for="cLink">Or paste your link here</label><input id="cLink" name="link" class="input" placeholder="https://…#connect=…" autocomplete="off"><span class="hint">On iPhone, apps added to the Home Screen need the link pasted once.</span></div>
+        <div class="field full"><label for="cLink">Or paste your link here</label><input id="cLink" name="link" class="input" placeholder="https://…#k=…" autocomplete="off"><span class="hint">On iPhone, apps added to the Home Screen need the link pasted once.</span></div>
         <div class="form-error full" id="connErr"></div>
         <div class="full"><button class="btn primary" type="submit" data-action="save-connection">Connect</button></div>
       </form>
@@ -3577,7 +3577,7 @@ const Actions = {
   async 'copy-setup-link'(el) {
     // "Same phone" links (iPhone home-screen install) carry this phone's ID so it doesn't use a second place.
     const same = el && el.dataset && el.dataset.samePhone && Store.meta.clientId;
-    const link = location.origin + location.pathname + '#connect=' + encodeURIComponent(Store.meta.apiKey || '') + (Api.url() ? '&url=' + encodeURIComponent(Api.url()) : '') + (same ? '&dev=' + encodeURIComponent(Store.meta.clientId) : '');
+    const link = location.origin + location.pathname + '#k=' + encodeURIComponent(Store.meta.apiKey || '') + (Api.url() && Api.url() !== DEFAULT_API_URL ? '&url=' + encodeURIComponent(Api.url()) : '') + (same ? '&dev=' + encodeURIComponent(Store.meta.clientId) : '');
     const box = document.getElementById('setupLinkBox');
     const copied = await copyText(link);
     if (box) { box.style.display = 'block'; box.textContent = link; }
@@ -4765,7 +4765,7 @@ function updateInstallUI() {
 function parseLink(text) {
   const t = String(text || '').trim();
   if (!t) return null;
-  const m = t.match(/#connect=([^&\s]+)(?:&url=([^&\s]+))?(?:&dev=([A-Za-z0-9_-]{6,60}))?/);
+  const m = t.match(/#(?:connect|k)=([^&\s]+)(?:&url=([^&\s]+))?(?:&dev=([A-Za-z0-9_-]{6,60}))?/);
   if (m) {
     let key = '', url = '';
     const dev = m[3] || '';
@@ -4788,7 +4788,7 @@ async function connectWithLink(key, url, dev) {
   const prev = { apiKey: Store.meta.apiKey, apiUrl: Store.meta.apiUrl };
   // A brand-new install opened with a "same phone" link keeps that phone's ID (iPhone home-screen apps).
   if (dev && !Store.meta.lastSyncAt && !Store.queue.length && dev !== Store.meta.clientId) await Store.setMeta('clientId', dev);
-  if (!url && !prev.apiUrl) return { error: 'This link is incomplete. Copy the whole link you received.' };
+  if (!url && !prev.apiUrl && !DEFAULT_API_URL) return { error: 'This link is incomplete. Copy the whole link you received.' };
   await Store.setMeta('apiKey', key);
   if (url) await Store.setMeta('apiUrl', url);
   await Store.setMeta('accountKey', '');
@@ -4848,7 +4848,7 @@ async function boot() {
   // Personal link: …/#connect=<key>&url=<server> (the #part never reaches the web host's servers)
   let fromLink = null;
   try {
-    if (/^#connect=/.test(location.hash || '')) {
+    if (/^#(connect|k)=/.test(location.hash || '')) {
       fromLink = parseLink(location.href);
       try { location.replace('#/dashboard'); } catch (e) { /* ignore */ }
     }
@@ -4863,7 +4863,7 @@ async function boot() {
   }
   // The personal link opened while the app is already open (only the #part changes, no reload).
   window.addEventListener('hashchange', () => {
-    if (!/^#connect=/.test(location.hash || '')) return;
+    if (!/^#(connect|k)=/.test(location.hash || '')) return;
     const l = parseLink(location.href);
     try { location.replace('#/dashboard'); } catch (e) { /* ignore */ }
     if (l) { UI.toast('Connecting your account…'); connectWithLink(l.key, l.url, l.dev); }
