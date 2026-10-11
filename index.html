@@ -10,40 +10,35 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Petsa">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<link rel="manifest" id="pdpManifest" href="manifest.json">
+<meta name="referrer" content="strict-origin-when-cross-origin">
 <script>
-/* iPhone/iPad: "Add to Home Screen" carries this account (and this phone's ID), so the
-   Home Screen app opens already connected — no pasting the link again. */
+/* iPhone/iPad: Safari's "Add to Home Screen" saves the page address (when there is no manifest), so the
+   address carries this account + this phone's ID as ?k=…&dev=… and the Home Screen app opens already
+   connected. Other phones/computers get the normal manifest (Install button). */
 (function () {
   var ua = navigator.userAgent || '';
   var ios = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   var inApp = /FBAN|FBAV|FB_IAB|FB4A|FBIOS|Instagram|Messenger|Line\/|Viber|; wv\)/.test(ua);
   window.PDP_IOS_BROWSER = ios && navigator.standalone !== true && !inApp;
+  if (!ios) { var l = document.createElement('link'); l.rel = 'manifest'; l.id = 'pdpManifest'; l.href = 'manifest.json'; document.head.appendChild(l); }
   function ls(k, v) { try { if (v === undefined) return localStorage.getItem(k); if (v) localStorage.setItem(k, v); else localStorage.removeItem(k); } catch (e) { return null; } return null; }
   function hex(n) { var a = new Uint8Array(n); try { crypto.getRandomValues(a); } catch (e) { for (var i = 0; i < n; i++) a[i] = Math.floor(Math.random() * 256); } return Array.prototype.map.call(a, function (b) { return ('0' + b.toString(16)).slice(-2); }).join(''); }
   window.HomePrep = {
     cid: function () { var c = ls('pdp-cid'); if (!c) { c = 'DEV-' + hex(8); ls('pdp-cid', c); } return c; },
-    url: function (key, cid) { return location.origin + location.pathname + '#k=' + encodeURIComponent(key) + '&dev=' + encodeURIComponent(cid); },
+    url: function (key, cid) { return location.origin + location.pathname + '?k=' + encodeURIComponent(key) + '&dev=' + encodeURIComponent(cid); },
     apply: function (key, cid) {
       if (!window.PDP_IOS_BROWSER || !/^https?:$/.test(location.protocol)) return;
       key = key || ls('pdp-key'); if (!key) return;
       cid = cid || this.cid(); ls('pdp-key', key); ls('pdp-cid', cid);
-      var u = this.url(key, cid);
+      var route = /^#\//.test(location.hash) ? location.hash : '';
+      var u = this.url(key, cid) + route;
       try { if (location.href !== u) history.replaceState(history.state, '', u); } catch (e) { /* ignore */ }
-      try {
-        var dir = location.origin + location.pathname.replace(/[^\/]*$/, '');
-        var m = { name: 'Petsa De Peligro', short_name: 'Petsa', id: dir, start_url: u, scope: dir, display: 'standalone',
-          background_color: '#F5F1EA', theme_color: '#2F6B5A',
-          icons: [{ src: dir + 'icon-192.png', sizes: '192x192', type: 'image/png' }, { src: dir + 'icon-512.png', sizes: '512x512', type: 'image/png' }] };
-        var l = document.getElementById('pdpManifest');
-        if (l) l.href = 'data:application/manifest+json,' + encodeURIComponent(JSON.stringify(m));
-      } catch (e) { /* ignore */ }
     },
     forget: function () { ls('pdp-key', null); }
   };
   if (window.PDP_IOS_BROWSER) {
-    var h = location.hash || '';
-    var k = h.match(/^#(?:connect|k)=([0-9a-fA-F]{20,80})/), d = h.match(/[&#]dev=([A-Za-z0-9_-]{6,60})/);
+    var all = (location.search || '') + (location.hash || '');
+    var k = all.match(/[?#&](?:connect|k)=([0-9a-fA-F]{20,80})/), d = all.match(/[?#&]dev=([A-Za-z0-9_-]{6,60})/);
     if (d) ls('pdp-cid', d[1]);
     window.HomePrep.apply(k ? k[1] : null);
   }
@@ -1913,7 +1908,7 @@ const UI = {
     if (!VIEWS.some(v => v.id === view)) view = 'dashboard';
     this.route(view);
     // Inside Messenger/Facebook keep the personal-link key in the address so "Open in browser" carries it to Chrome.
-    const keepKey = (IN_APP_BROWSER || window.PDP_IOS_BROWSER) && /^#(connect|k)=/.test(location.hash || '');
+    const keepKey = IN_APP_BROWSER && /^#(connect|k)=/.test(location.hash || '');
     try { if (!keepKey && location.hash !== '#/' + view) location.hash = '#/' + view; } catch (e) { /* URL not writable here — in-memory routing still works */ }
   },
   route(view) {
@@ -4908,7 +4903,7 @@ function updateInstallUI() {
 function parseLink(text) {
   const t = String(text || '').trim();
   if (!t) return null;
-  const m = t.match(/#(?:connect|k)=([^&\s]+)(?:&url=([^&\s]+))?(?:&dev=([A-Za-z0-9_-]{6,60}))?/);
+  const m = t.match(/[#?&](?:connect|k)=([^&#\s]+)(?:&url=([^&#\s]+))?(?:&dev=([A-Za-z0-9_-]{6,60}))?/);
   if (m) {
     let key = '', url = '';
     const dev = m[3] || '';
@@ -4996,8 +4991,10 @@ async function boot() {
   // Personal link: …/#connect=<key>&url=<server> (the #part never reaches the web host's servers)
   let fromLink = null;
   try {
-    if (/^#(connect|k)=/.test(location.hash || '')) {
+    if (/^#(connect|k)=/.test(location.hash || '') || /[?&]k=/.test(location.search || '')) {
       fromLink = parseLink(location.href);
+      // Home Screen app (iPhone) opened with ?k=…: remove it from the address once read.
+      if (/[?&]k=/.test(location.search || '') && !window.PDP_IOS_BROWSER) { try { history.replaceState(null, '', location.pathname + '#/dashboard'); } catch (e) { /* ignore */ } }
       // Inside Messenger/Facebook the key stays in the address, so "Open in browser" brings the account along.
       // In iPhone Safari it stays too, so "Add to Home Screen" brings the account along.
       if (!IN_APP_BROWSER && !window.PDP_IOS_BROWSER) { try { location.replace('#/dashboard'); } catch (e) { /* ignore */ } }
