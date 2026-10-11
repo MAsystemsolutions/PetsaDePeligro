@@ -7,7 +7,7 @@
  *
  * Bump CACHE_VERSION whenever you deploy a new index.html so clients update.
  * ========================================================================== */
-const CACHE_VERSION = 'pdp-shell-v2.1.2';
+const CACHE_VERSION = 'pdp-shell-v2.2.0';
 const FONT_CACHE = 'pdp-fonts-v1';
 const SHELL = [
   './',
