@@ -10,7 +10,45 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Petsa">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<link rel="manifest" href="manifest.json">
+<link rel="manifest" id="pdpManifest" href="manifest.json">
+<script>
+/* iPhone/iPad: "Add to Home Screen" carries this account (and this phone's ID), so the
+   Home Screen app opens already connected — no pasting the link again. */
+(function () {
+  var ua = navigator.userAgent || '';
+  var ios = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  var inApp = /FBAN|FBAV|FB_IAB|FB4A|FBIOS|Instagram|Messenger|Line\/|Viber|; wv\)/.test(ua);
+  window.PDP_IOS_BROWSER = ios && navigator.standalone !== true && !inApp;
+  function ls(k, v) { try { if (v === undefined) return localStorage.getItem(k); if (v) localStorage.setItem(k, v); else localStorage.removeItem(k); } catch (e) { return null; } return null; }
+  function hex(n) { var a = new Uint8Array(n); try { crypto.getRandomValues(a); } catch (e) { for (var i = 0; i < n; i++) a[i] = Math.floor(Math.random() * 256); } return Array.prototype.map.call(a, function (b) { return ('0' + b.toString(16)).slice(-2); }).join(''); }
+  window.HomePrep = {
+    cid: function () { var c = ls('pdp-cid'); if (!c) { c = 'DEV-' + hex(8); ls('pdp-cid', c); } return c; },
+    url: function (key, cid) { return location.origin + location.pathname + '#k=' + encodeURIComponent(key) + '&dev=' + encodeURIComponent(cid); },
+    apply: function (key, cid) {
+      if (!window.PDP_IOS_BROWSER || !/^https?:$/.test(location.protocol)) return;
+      key = key || ls('pdp-key'); if (!key) return;
+      cid = cid || this.cid(); ls('pdp-key', key); ls('pdp-cid', cid);
+      var u = this.url(key, cid);
+      try { if (location.href !== u) history.replaceState(history.state, '', u); } catch (e) { /* ignore */ }
+      try {
+        var dir = location.origin + location.pathname.replace(/[^\/]*$/, '');
+        var m = { name: 'Petsa De Peligro', short_name: 'Petsa', id: dir, start_url: u, scope: dir, display: 'standalone',
+          background_color: '#F5F1EA', theme_color: '#2F6B5A',
+          icons: [{ src: dir + 'icon-192.png', sizes: '192x192', type: 'image/png' }, { src: dir + 'icon-512.png', sizes: '512x512', type: 'image/png' }] };
+        var l = document.getElementById('pdpManifest');
+        if (l) l.href = 'data:application/manifest+json,' + encodeURIComponent(JSON.stringify(m));
+      } catch (e) { /* ignore */ }
+    },
+    forget: function () { ls('pdp-key', null); }
+  };
+  if (window.PDP_IOS_BROWSER) {
+    var h = location.hash || '';
+    var k = h.match(/^#(?:connect|k)=([0-9a-fA-F]{20,80})/), d = h.match(/[&#]dev=([A-Za-z0-9_-]{6,60})/);
+    if (d) ls('pdp-cid', d[1]);
+    window.HomePrep.apply(k ? k[1] : null);
+  }
+})();
+</script>
 <link rel="icon" href="icon-192.png" type="image/png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -644,6 +682,25 @@ a{color:var(--brand)}
   .print-only{display:block}
   .report-table td,.report-table th{padding:6px 8px}
 }
+
+/* Install guide (coach marks) */
+.ig{position:fixed;inset:0;z-index:140;background:rgba(20,32,27,.82);color:#fff;display:flex;flex-direction:column;justify-content:center;padding:24px 22px calc(24px + env(safe-area-inset-bottom));animation:fade .2s;-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
+.ig-card{background:#fff;color:var(--ink);border-radius:26px;padding:22px 20px;max-width:440px;width:100%;margin:0 auto;box-shadow:0 30px 80px rgba(0,0,0,.35)}
+.ig-card h2{font:600 24px/1.15 'Playfair Display',Georgia,serif;margin:0 0 6px}
+.ig-card .ig-sub{color:var(--ink-2);margin:0 0 14px;font-size:15px}
+.ig-steps{list-style:none;margin:0 0 16px;padding:0;display:flex;flex-direction:column;gap:10px}
+.ig-steps li{display:flex;gap:12px;align-items:center;background:var(--surface-2);border:1px solid var(--line);border-radius:16px;padding:12px 14px;font-size:15.5px;line-height:1.35}
+.ig-num{flex:none;width:30px;height:30px;border-radius:50%;background:var(--brand);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700}
+.ig-ico{flex:none;width:34px;height:34px;border-radius:9px;background:#fff;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;color:#1a6fd8;font-weight:800}
+.ig-ok{background:var(--brand-soft);color:var(--brand);border-radius:14px;padding:10px 12px;font-weight:600;font-size:14.5px;margin:0 0 14px}
+.ig .muted{color:var(--muted);font-size:13.5px}
+.ig-btns{display:flex;gap:8px;flex-wrap:wrap}.ig-btns .btn{flex:1 1 auto;justify-content:center;padding:13px 14px;font-size:15.5px}
+.ig-arrow{position:fixed;font-size:54px;line-height:1;filter:drop-shadow(0 6px 14px rgba(0,0,0,.4));animation:igb 1s ease-in-out infinite;pointer-events:none}
+.ig-arrow.top{top:6px;right:14px}.ig-arrow.bottom{bottom:calc(10px + env(safe-area-inset-bottom));left:50%;margin-left:-27px}
+.ig-arrow.top .lbl,.ig-arrow.bottom .lbl{font:700 14px var(--sans,system-ui);display:block;text-align:center;background:var(--peach);color:#2b1a10;border-radius:12px;padding:4px 10px;margin-top:4px;white-space:nowrap}
+.ig-arrow.top .lbl{margin:4px 0 0 -40px}
+@keyframes igb{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+.ig-arrow.top{animation-name:igt}@keyframes igt{0%,100%{transform:translateY(0)}50%{transform:translateY(8px)}}
 </style>
 </head>
 <body>
@@ -879,7 +936,7 @@ const Store = {
     this.conflicts = await LocalDB.getAll('conflicts');
     this.log = (await LocalDB.getAll('syncLog')).sort((a, b) => (a.at < b.at ? 1 : -1)).slice(0, 200);
     this.settings = this.meta.settings || {};
-    if (!this.meta.clientId) await this.setMeta('clientId', U.uid('DEV'));
+    if (!this.meta.clientId) await this.setMeta('clientId', (window.PDP_IOS_BROWSER && window.HomePrep) ? HomePrep.cid() : U.uid('DEV'));
   },
   async setMeta(key, value) { this.meta[key] = value; await LocalDB.put('meta', { key, value }); },
   /** Removes every cached record and queued change (used when this device switches to a different account). */
@@ -1840,7 +1897,7 @@ const UI = {
     document.addEventListener('input', e => this.onInput(e));
     document.addEventListener('change', e => this.onChange(e));
     document.addEventListener('keydown', e => { if (e.key === 'Escape') Modal.close(); });
-    window.addEventListener('hashchange', () => { const v = this.hashView(); if (v && v !== this.view) this.route(v); });
+    window.addEventListener('hashchange', () => { const v = this.hashView(); if (v && v !== this.view) this.route(v); if (v && window.PDP_IOS_BROWSER && Store.meta.apiKey) setTimeout(() => HomePrep.apply(Store.meta.apiKey, Store.meta.clientId), 0); });
     window.addEventListener('resize', U.debounce(() => Charts.drawAll(), 150));
     const mi = document.getElementById('monthInput');
     mi.addEventListener('change', () => { if (U.isYm(mi.value)) this.setMonth(mi.value); });
@@ -1856,7 +1913,7 @@ const UI = {
     if (!VIEWS.some(v => v.id === view)) view = 'dashboard';
     this.route(view);
     // Inside Messenger/Facebook keep the personal-link key in the address so "Open in browser" carries it to Chrome.
-    const keepKey = IN_APP_BROWSER && /^#(connect|k)=/.test(location.hash || '');
+    const keepKey = (IN_APP_BROWSER || window.PDP_IOS_BROWSER) && /^#(connect|k)=/.test(location.hash || '');
     try { if (!keepKey && location.hash !== '#/' + view) location.hash = '#/' + view; } catch (e) { /* URL not writable here — in-memory routing still works */ }
   },
   route(view) {
@@ -1978,7 +2035,7 @@ const UI = {
   },
   inAppBanner() {
     if (!IN_APP_BROWSER || IS_GAS) return '';
-    return `<div class="banner inapp"><span class="grow">📲 <b>Want it on your home screen?</b> You opened this inside Messenger/Facebook, which can’t install apps. Tap <b>⋮</b> or <b>…</b> at the top → <b>Open in browser</b> (Chrome on Android, Safari on iPhone), then tap <b>Install</b>.</span>${Store.meta.apiKey ? '<button class="btn sm" data-action="copy-setup-link">Copy my link</button>' : ''}</div>`;
+    return `<div class="banner inapp"><span class="grow">📲 <b>Want it on your home screen?</b> You opened this inside Messenger/Facebook, which can’t install apps. Open it in Chrome (Android) or Safari (iPhone) to install.</span><button class="btn sm primary" data-action="install-guide">Show me how</button></div>`;
   },
   cachedBanner() {
     return this.inAppBanner() + this.planBanner() + this.syncBanner();
@@ -2694,7 +2751,7 @@ const Views = {
       <p class="gate-tag">Your budget and bills — so payday never sneaks up on you.</p>
       <div class="gate-box"><b>Open your personal link</b><p class="sub" style="margin:4px 0 0">Tap the link you received (by Messenger, Viber, SMS or email). It connects this phone to your account — no password needed.</p></div>
       <form id="connForm" class="form-grid" style="margin-top:16px" autocomplete="off">
-        <div class="field full"><label for="cLink">Or paste your link here</label><input id="cLink" name="link" class="input" placeholder="https://…#k=…" autocomplete="off"><span class="hint">On iPhone, apps added to the Home Screen need the link pasted once.</span></div>
+        <div class="field full"><label for="cLink">Or paste your link here</label><input id="cLink" name="link" class="input" placeholder="https://…#k=…" autocomplete="off"><span class="hint">Already opened your link before? You don’t need to paste it — this is only a backup.</span></div>
         <div class="form-error full" id="connErr"></div>
         <div class="full"><button class="btn primary" type="submit" data-action="save-connection">Connect</button></div>
       </form>
@@ -3381,7 +3438,7 @@ const Forms = {
     if (IS_GAS) body = `<p>This copy is opened from Google Apps Script, which can't be installed. Open your personal link in your phone's browser and install it from there.</p>`;
     else if (inApp) body = `<p>You're inside another app's browser (for example Facebook or Messenger), which can't install apps.</p><ol class="install-steps"><li>Tap the <b>⋮</b> or <b>…</b> menu and choose <b>Open in browser</b> (Chrome on Android, Safari on iPhone).</li><li>Then tap <b>Install</b> again.</li></ol>${Store.meta.apiKey ? '<p class="sub" style="color:var(--ink-2);margin:12px 0 8px">If the browser opens without your account, paste your link there:</p><button type="button" class="btn primary" data-action="copy-setup-link">Copy my link</button>' : ''}`;
     else if (ios && !iosSafari) body = `<p>On iPhone, apps can only be added from <b>Safari</b>.</p><ol class="install-steps"><li>Copy this link: <span class="mono">${U.esc(link)}</span></li><li>Open it in <b>Safari</b>.</li><li>Tap <b>Share</b> (square with an arrow) → <b>Add to Home Screen</b> → <b>Add</b>.</li></ol>`;
-    else if (ios) body = `<ol class="install-steps"><li>Tap the <b>Share</b> button <span aria-hidden="true">(square with an arrow ↑)</span> at the bottom of Safari.</li><li>Scroll down and tap <b>Add to Home Screen</b>.</li><li>Tap <b>Add</b>. The <b>₱ Petsa</b> icon appears on your home screen.</li><li>Open the app from that icon and paste your personal link once (iPhone keeps home-screen apps separate from Safari).</li></ol>${Store.meta.apiKey ? '<p style="margin:12px 0 0"><button type="button" class="btn primary" data-action="copy-setup-link" data-same-phone="1">Copy my link first</button></p>' : ''}`;
+    else if (ios) body = `<ol class="install-steps"><li>Tap the <b>Share</b> button <span aria-hidden="true">(square with an arrow ↑)</span> at the bottom of Safari.</li><li>Scroll down and tap <b>Add to Home Screen</b>.</li><li>Tap <b>Add</b>. The <b>₱ Petsa</b> icon appears on your home screen — it opens already connected to your account.</li></ol><p class="sub" style="color:var(--ink-2);margin:12px 0 8px">If the Home Screen app ever asks for your link, copy it here and paste it there:</p>${Store.meta.apiKey ? '<button type="button" class="btn" data-action="copy-setup-link" data-same-phone="1">Copy my link</button>' : ''}`;
     else if (android) body = `<ol class="install-steps"><li>Tap the <b>⋮</b> menu at the top right of Chrome.</li><li>Tap <b>Install app</b> (or <b>Add to Home screen</b>) → <b>Install</b>.</li></ol><p class="sub" style="color:var(--ink-2);margin-top:14px">Don't see it? If the menu says <b>Open in app</b>, it's already installed. Look for <b>Petsa</b> (₱ icon) in your app list. To reinstall, long-press that icon → <b>Uninstall</b>, come back here and tap <b>Install</b> again.</p>`;
     else body = `<ol class="install-steps"><li>Click the <b>install icon</b> at the right end of the address bar (a screen with a down arrow), then <b>Install</b>.</li><li>Or open the browser menu <b>⋮</b> → <b>Cast, save and share → Install page as app</b> (Chrome) / <b>Apps → Install this site as an app</b> (Edge).</li></ol><p class="sub" style="color:var(--ink-2);margin-top:14px">If it's already installed, the browser hides this option. Look for <b>${U.esc(APP_NAME)}</b> in your Start menu or Applications.</p>`;
     Modal.open({ title: 'Install ' + APP_NAME, eyebrow: ios ? 'iPhone / iPad' : android ? 'Android' : 'This device', body, foot: '<button type="button" class="btn primary" data-close>Got it</button>' });
@@ -3582,6 +3639,7 @@ const Actions = {
     const ok = await Modal.confirm('Sign out this device?', (n ? `<b>${n} change(s) are not synced yet</b> and will stay on this device until you connect again.<br><br>` : '') + 'To use the app again on this device, open your personal link.', 'Sign out', true);
     if (!ok) return;
     await Store.setMeta('apiKey', ''); await Store.setMeta('accountKey', '');
+    if (window.HomePrep) HomePrep.forget();
     UI.render(); UI.toast('Signed out.');
   },
   async 'copy-setup-link'(el) {
@@ -3643,7 +3701,14 @@ const Actions = {
       if (choice && choice.outcome === 'accepted') UI.toast('Installing ' + APP_NAME + '…');
       return;
     }
-    Forms.installHelp();
+    if (InstallGuide.platform().phone) InstallGuide.open(true); else Forms.installHelp();
+  },
+  'install-guide'() { InstallGuide.open(true); },
+  'install-guide-later'() { InstallGuide.later(); },
+  async 'install-guide-go'() {
+    const ev = UI.deferredInstall;
+    InstallGuide.close();
+    if (ev) return Actions.install();
   }
 };
 
@@ -4723,6 +4788,74 @@ function ring(pct, size, emoji) {
 }
 
 
+/* ==========================================================================
+ *  INSTALL GUIDE — a full-screen "tap here" guide for phones.
+ *  Messenger/Facebook browser → "open in Safari/Chrome"; iPhone → Share → Add to
+ *  Home Screen (the account comes along); Android → one big Install button.
+ * ======================================================================== */
+const InstallGuide = {
+  platform() {
+    const ua = navigator.userAgent || '';
+    const ios = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const android = /Android/.test(ua);
+    return { ios, android, phone: ios || android, inApp: IN_APP_BROWSER, chromeIOS: ios && /CriOS/.test(ua) };
+  },
+  ls(k, v) { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) { /* private mode */ } return null; },
+  /** Shown once after connecting (and again a few days after "Later"), never inside the installed app. */
+  auto() {
+    const p = this.platform();
+    if (!p.phone || IS_GAS || runningAsApp() || !Store.meta.apiKey || Store.meta.deviceBlocked || document.getElementById('ig')) return;
+    const later = Number(this.ls('pdp-ig-later') || 0);
+    if (Date.now() - later < 3 * 86400000) return;
+    this.open(false);
+  },
+  later() { this.ls('pdp-ig-later', String(Date.now())); this.close(); },
+  close() { const el = document.getElementById('ig'); if (el) el.remove(); },
+  open(manual) {
+    this.close();
+    const p = this.platform();
+    const share = '<svg width="20" height="22" viewBox="0 0 24 26" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 9H5v15h14V9h-3"/><path d="M12 2v14M7 7l5-5 5 5"/></svg>';
+    const plus = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="M12 8v8M8 12h8"/></svg>';
+    const step = (n, ico, html) => `<li><span class="ig-num">${n}</span>${ico ? `<span class="ig-ico">${ico}</span>` : ''}<span>${html}</span></li>`;
+    let arrow = '', body = '';
+    const laterBtn = `<button type="button" class="btn" data-action="install-guide-later">${manual ? 'Close' : 'Later'}</button>`;
+    if (p.inApp) {
+      const browser = p.ios ? 'Safari' : p.android ? 'Chrome' : 'your browser';
+      arrow = `<div class="ig-arrow top">👆<span class="lbl">Tap here</span></div>`;
+      body = `<h2>Open it in ${browser} first</h2><p class="ig-sub">You're inside Messenger/Facebook, which can't add apps to your phone.</p>
+        <ol class="ig-steps">${step(1, '•••', 'Tap <b>•••</b> or <b>⋮</b> at the top right <span class="muted">(on some phones it’s at the bottom)</span>')}
+        ${step(2, '↗', `Choose <b>Open in ${browser}</b> <span class="muted">(or “Open in browser”)</span>`)}</ol>
+        <p class="ig-ok">✓ Your account comes along — no need to log in.</p>
+        <div class="ig-btns">${Store.meta.apiKey ? '<button type="button" class="btn" data-action="copy-setup-link">Can’t find it? Copy my link</button>' : ''}${laterBtn}</div>
+        <div class="muted" id="setupLinkBox" style="display:none;margin-top:10px;word-break:break-all;font-size:12px"></div>`;
+    } else if (p.ios) {
+      arrow = p.chromeIOS ? `<div class="ig-arrow top">👆<span class="lbl">Share</span></div>` : `<div class="ig-arrow bottom"><span class="lbl">Share is down here</span>👇</div>`;
+      body = `<h2>Add Petsa to your Home Screen</h2><p class="ig-sub">3 taps and it works like a real app 📱</p>
+        <ol class="ig-steps">${step(1, share, `Tap <b>Share</b> ${p.chromeIOS ? 'at the top right' : 'at the bottom of Safari'} <span class="muted">(newer iPhones: tap <b>•••</b> first, then <b>Share</b>)</span>`)}
+        ${step(2, plus, 'Scroll down and tap <b>Add to Home Screen</b>')}
+        ${step(3, '✓', 'Tap <b>Add</b> at the top right')}</ol>
+        <p class="ig-ok">✓ The ₱ Petsa icon opens already connected — no need to paste your link.</p>
+        <div class="ig-btns"><button type="button" class="btn primary" data-action="install-guide-later">Got it</button></div>`;
+    } else if (p.android && UI.deferredInstall) {
+      body = `<h2>Install Petsa on your phone</h2><p class="ig-sub">One tap — it opens from your home screen like a real app, even with no signal.</p>
+        <div class="ig-btns" style="margin-bottom:8px"><button type="button" class="btn primary" data-action="install-guide-go">📲 Install now</button></div>
+        <div class="ig-btns">${laterBtn}</div>`;
+    } else {
+      arrow = `<div class="ig-arrow top">👆<span class="lbl">Tap ⋮</span></div>`;
+      body = `<h2>Install Petsa on your phone</h2><p class="ig-sub">It opens from your home screen like a real app, even with no signal.</p>
+        <ol class="ig-steps">${step(1, '⋮', 'Tap <b>⋮</b> at the top right of Chrome')}
+        ${step(2, '📲', 'Tap <b>Install app</b> or <b>Add to Home screen</b>')}
+        ${step(3, '✓', 'Choose <b>Install</b> <span class="muted">(not “Create shortcut”)</span>')}</ol>
+        <div class="ig-btns"><button type="button" class="btn primary" data-action="install-guide-later">Got it</button></div>`;
+    }
+    const el = document.createElement('div');
+    el.className = 'ig'; el.id = 'ig'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true'); el.setAttribute('aria-label', 'How to install');
+    el.innerHTML = arrow + `<div class="ig-card">${body}</div>`;
+    el.addEventListener('click', e => { if (e.target === el) InstallGuide.later(); });
+    document.body.appendChild(el);
+  }
+};
+
 /* ------------------------------------------------------------------ Server reconciliation (frontend never has the last word) */
 Store.verified = {};
 const Verify = {
@@ -4808,6 +4941,7 @@ async function connectWithLink(key, url, dev) {
   const r = await Sync.run({ manual: true, full: true });
   if (r && r.error && !r.network) {
     if (Sync.lastErrorCode === 'UNAUTHORIZED') {
+      await Store.setMeta('badKey', key);
       await Store.setMeta('apiKey', prev.apiKey || ''); await Store.setMeta('apiUrl', prev.apiUrl || ''); await Store.setMeta('accountKey', prev.apiKey ? Store.meta.accountKey : '');
       Sync.lastError = ''; Sync.lastErrorCode = '';
       UI.render();
@@ -4819,6 +4953,10 @@ async function connectWithLink(key, url, dev) {
   else if (r && r.error) UI.toast('Link saved. ' + (r.network ? 'It will connect when you are back online.' : 'First sync failed: ' + r.error), 'err');
   else if (r && r.skipped === 'locked') UI.toast('Connected — your subscription needs renewing.', 'warn');
   else { const a = Account.info; UI.toast('✓ Connected' + (a && a.customerName ? ' — welcome, ' + a.customerName.split(' ')[0] + '!' : '.')); }
+  if (!(r && r.error) && !Store.meta.deviceBlocked) {
+    if (window.PDP_IOS_BROWSER) HomePrep.apply(key, Store.meta.clientId);
+    setTimeout(() => InstallGuide.auto(), 1200);
+  }
   return r || {};
 }
 
@@ -4861,23 +4999,27 @@ async function boot() {
     if (/^#(connect|k)=/.test(location.hash || '')) {
       fromLink = parseLink(location.href);
       // Inside Messenger/Facebook the key stays in the address, so "Open in browser" brings the account along.
-      if (!IN_APP_BROWSER) { try { location.replace('#/dashboard'); } catch (e) { /* ignore */ } }
+      // In iPhone Safari it stays too, so "Add to Home Screen" brings the account along.
+      if (!IN_APP_BROWSER && !window.PDP_IOS_BROWSER) { try { location.replace('#/dashboard'); } catch (e) { /* ignore */ } }
+      // The Home Screen app opens with the link every time: only connect when it is a different, usable link.
+      if (fromLink && (fromLink.key === Store.meta.apiKey || fromLink.key === Store.meta.badKey)) fromLink = null;
     }
   } catch (e) { /* ignore malformed links */ }
   UI.view = UI.hashView() || 'dashboard';
   UI.init();
   updateInstallUI();
   setTimeout(() => Wizard.maybeOpen(), 600);
+  if (window.PDP_IOS_BROWSER && Store.meta.apiKey) HomePrep.apply(Store.meta.apiKey, Store.meta.clientId);
   if (fromLink) {
     UI.toast('Connecting your account…');
     connectWithLink(fromLink.key, fromLink.url, fromLink.dev);
-  }
+  } else if (Store.meta.apiKey) setTimeout(() => InstallGuide.auto(), 1500);
   // The personal link opened while the app is already open (only the #part changes, no reload).
   window.addEventListener('hashchange', () => {
     if (!/^#(connect|k)=/.test(location.hash || '')) return;
     const l = parseLink(location.href);
-    if (!IN_APP_BROWSER) { try { location.replace('#/dashboard'); } catch (e) { /* ignore */ } }
-    if (l) { UI.toast('Connecting your account…'); connectWithLink(l.key, l.url, l.dev); }
+    if (!IN_APP_BROWSER && !window.PDP_IOS_BROWSER) { try { location.replace('#/dashboard'); } catch (e) { /* ignore */ } }
+    if (l && l.key !== Store.meta.apiKey) { UI.toast('Connecting your account…'); connectWithLink(l.key, l.url, l.dev); }
   });
   Sync.start();
 }
